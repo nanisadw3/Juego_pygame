@@ -243,6 +243,10 @@ class Level:
                     for sp in self.spawn_sprites:
                         if sp.spawn_type == 'player' and not sp.is_empty() and m.manhattan_distance(mt, (sp.rect.x // TILESIZE, sp.rect.y // TILESIZE)) <= 1:
                             m.pickup_item(sp.item); ItemIcon(m.rect.midtop, sp.item, [self.visible_sprites])
+                            # El monstruo olvida este spawn (lo volverá a descubrir si ve que el jugador pone más)
+                            if hasattr(m, 'remembered_player_spawns') and (sp.rect.x // TILESIZE, sp.rect.y // TILESIZE) in m.remembered_player_spawns:
+                                m.remembered_player_spawns.remove((sp.rect.x // TILESIZE, sp.rect.y // TILESIZE))
+                            
                             sp.item, tp = None, (sp.rect.x // TILESIZE, sp.rect.y // TILESIZE)
                             if tp in self.blocked_tiles: self.blocked_tiles.remove(tp)
                             if tp in self.item_tiles: self.item_tiles.remove(tp)

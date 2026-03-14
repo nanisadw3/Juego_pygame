@@ -19,6 +19,7 @@ class Monster(pygame.sprite.Sprite):
         self.spawn_pos = pygame.math.Vector2(pos)
         self.held_item = None
         self.remembered_items = set() 
+        self.remembered_player_spawns = set() # Nueva memoria para spawns del jugador
         self.vision_radius = vision_radius
         self._state = 'exploring' 
         self.target_monster = None 
@@ -99,6 +100,29 @@ class Monster(pygame.sprite.Sprite):
         self.detected_player = None
         return False
 
+    def discover_objects(self, spawn_sprites):
+        """Busca spawns del jugador en el área ya explorada (fuera de la niebla)."""
+        if not spawn_sprites: return
+        for sp in spawn_sprites:
+            if sp.spawn_type == 'player':
+                tx, ty = int(sp.rect.x // TILESIZE), int(sp.rect.y // TILESIZE)
+                if not self.fog_grid[ty][tx]:
+                    # Si no hay niebla, el monstruo sabe si hay un item o no
+                    if not sp.is_empty():
+                        self.remembered_player_spawns.add((tx, ty))
+                    elif (tx, ty) in self.remembered_player_spawns:
+                        # Si lo ve vacío, lo olvida (temporalmente)
+                        self.remembered_player_spawns.remove((tx, ty))
+
+    def find_closest_known_player_spawn(self):
+        if not self.remembered_player_spawns: return None
+        current_tile = (int(self.hitbox.centerx // TILESIZE), int(self.hitbox.centery // TILESIZE))
+        best_tile, min_dist = None, float('inf')
+        for st in self.remembered_player_spawns:
+            dist = self.manhattan_distance(current_tile, st)
+            if dist < min_dist: min_dist, best_tile = dist, st
+        return best_tile
+
     def get_new_path(self, spawn_sprites=None, level=None):
         current_tile = (int(self.hitbox.centerx // TILESIZE), int(self.hitbox.centery // TILESIZE))
 
@@ -132,6 +156,16 @@ class Monster(pygame.sprite.Sprite):
             if current_tile != target_player_tile:
                 self.path = self.astar_to_target(target_player_tile, respect_fog=False, allow_target_solid=True)
                 if self.path: return
+
+        # 3.5 ROBAR AL JUGADOR (Nueva prioridad alta)
+        if not self.held_item:
+            target_spawn_tile = self.find_closest_known_player_spawn()
+            if target_spawn_tile:
+                if current_tile == target_spawn_tile: return
+                self.path = self.astar_to_target(target_spawn_tile, respect_fog=True, allow_target_solid=True)
+                if self.path:
+                    self.state = 'stealing'
+                    return
 
         # 4. IR A POR COFRES (Prioridad sobre exploración libre)
         if not self.held_item:
@@ -229,7 +263,7 @@ class Monster(pygame.sprite.Sprite):
         if start_tile == target_tile: return []
         open_set = []
         heapq.heappush(open_set, (0, self.manhattan_distance(start_tile, target_tile), [start_tile]))
-        visited, max_iterations, iterations = {start_tile}, 1000, 0
+        visited, max_iterations, iterations = {start_tile}, 5000, 0
         while open_set and iterations < max_iterations:
             iterations += 1
             f, h, path = heapq.heappop(open_set)
@@ -369,6 +403,9 @@ class Monster(pygame.sprite.Sprite):
             for y in range(self.map_height_tiles):
                 for x in range(self.map_width_tiles):
                     if not o.fog_grid[y][x]: self.fog_grid[y][x] = False
+            # Compartir ubicaciones de items y spawns del jugador
+            self.remembered_items.update(o.remembered_items)
+            self.remembered_player_spawns.update(o.remembered_player_spawns)
 
     def rebuild_fog_surface(self):
         for y in range(self.map_height_tiles):
@@ -394,6 +431,9 @@ class Monster(pygame.sprite.Sprite):
             self.status, self.is_moving = 'idle', False
             self.animate()
             return
+
+        if spawn_sprites:
+            self.discover_objects(spawn_sprites)
 
         if player:
             if player.is_being_carried and self.hitbox.colliderect(player.hitbox): self.state = 'carrying'
