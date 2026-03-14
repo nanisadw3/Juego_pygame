@@ -1,0 +1,118 @@
+=============================================
+DOCUMENTACIÓN DEL JUEGO - CÓDIGO FUENTE
+=============================================
+
+MÓDULO: main.py
+----------------
+- Clase Game: Controla el bucle principal del juego
+- Inicializa Pygame y pygame.mixer (audio)
+- Gestiona la música aleatoria del directorio assets/sounds/Musics
+- Maneja el estado del juego (running/paused)
+- Atajos: ESC para pausar
+- Ajustes: zoom, fps, velocidad jugador, volumen, perspectiva, velocidad IA monstruos
+- Métodos clave:
+  * run(): bucle principal
+  * update_zoom(), update_rap(), update_volume()
+  * update_perspective() - cambia entre vista Jugador/Monstruos/Mapa
+  * restart_game(): reinicia el nivel
+
+MÓDULO: settings.py
+--------------------
+Constantes globales del juego:
+- WIDTH = 1280, HEIGHT = 720 (resolución ventana)
+- FPS = 60
+- TILESIZE = 16 (tamaño de cada tile en píxeles)
+- ZOOM = 2.5 (nivel de zoom inicial)
+- RAP = 4 (velocidad del jugador)
+- FOG_ENABLED = True, FOG_COLOR = 'black'
+- MONSTER_SPEED = 1.0
+- MONSTER_AI = 'random' (algoritmo de IA: random, dfs, bfs, astar)
+
+MÓDULO: level.py
+-----------------
+- Clase Level: Gestiona todo el nivel/mapa del juego
+- Clase YSortCameraGroup: Grupo de sprites ordenados por Y (efecto 2.5D)
+- Métodos clave:
+  * create_map(): Carga layouts CSV y crea tiles, player, monsters
+  * run(): Bucle del nivel - update, fog, draw
+  * reveal_player_tiles(): Niebla de guerra del jugador
+  * check_interaction(): Cooldown (SPACE) - abrir cofres, recoger/soltar items
+  * export_monster_memories(): Guarda niebla de guerra de monstruos como .txt
+  * update_*(): Métodos para cambiar ajustes en tiempo real
+
+MÓDULO: player.py
+------------------
+- Clase Player: Sprite del jugador controlable
+- Atributos:
+  * held_item: item que lleva el jugador (None si no hay)
+  * interacting: si está interactuando
+- Métodos clave:
+  * input(): Lee teclado (flechas para mover)
+  * move(speed): Movimiento con colisiones
+  * get_status(): Cambia a idle cuando no se mueve
+  * animate(): Animación de sprites
+  * pickup_item() / drop_item(): Gestión de inventario
+  * start_interaction(): Inicia animación de interacción
+
+MÓDULO: monster.py
+-------------------
+- Clase Monster: Sprite de enemigo con IA
+- Sistemas:
+  * Niebla de guerra individual (fog_grid)
+  * Memoria del mapa explorado
+- Algoritmos de IA (seleccionables):
+  * random_path(): Movimiento aleatorio
+  * dfs_path(): Profundidad primero
+  * bfs_path(): Anchura primero
+  * astar_path(): A* con heurística Manhattan
+- Métodos clave:
+  * get_new_path(): Selecciona algoritmo de IA
+  * reveal_my_tiles(): Actualiza su niebla de guerra (9x9)
+  * move(): Movimiento suave entre tiles
+  * update_speed() / set_ai_algorithm(): Cambios dinámicos
+
+MÓDULO: tile.py
+----------------
+- Clase Tile: Elemento visual del mapa
+- Tipos: 'decoracion' (suelo), 'muros' (obstáculo)
+- Hitbox ligeramente más pequeña para colisiones
+
+MÓDULO: support.py
+-------------------
+Funciones auxiliares:
+- import_csv_layout(path): Lee archivos .csv y devuelve matriz
+- import_cut_graphics(path): Corta spritesheet en tiles
+- import_folder(path): Carga todas las imágenes de una carpeta
+
+MÓDULO: spawn.py
+-----------------
+- Clase Spawn: Punto de aparición
+- Tipos: 'player' (spawn seguro), 'enemy' (spawn de enemigos)
+- Puede contener un item (DroppedItem)
+
+MÓDULO: item.py
+----------------
+- Cofre: Obstáculo abrible con item aleatorio dentro
+- ItemIcon: Icono flotante sobre el jugador
+- DroppedItem: Item soltado en el suelo
+
+MÓDULO: menu.py
+----------------
+- SettingsMenu: Menú de pausa con sliders
+- Ajustes: Zoom, FPS, Velocidad Jugador, Volumen, Perspectiva, Velocidad IA, Tipo IA
+- Acciones: Restart, Exportar memorias, Cambiar canción
+
+=============================================
+FLUJO DEL JUEGO
+=============================================
+1. main.py crea Game() -> inicializa todo
+2. Game.run() -> bucle principal
+3. Level.run() -> actualiza sprites, cámara, niebla
+4. YSortCameraGroup.custom_draw() -> dibuja todo ordenado por Y
+5. ESC -> abre menú de ajustes
+6. SPACE -> interactuar (abrir cofre / soltar item)
+
+TECLAS:
+- Flechas: Mover jugador
+- SPACE: Interactuar
+- ESC: Pausa/Ajustes
